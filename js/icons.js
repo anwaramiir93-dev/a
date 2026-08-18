@@ -31,12 +31,12 @@
 
   function loadLucide() {
     return new Promise((resolve) => {
-      if (window.lucide) return resolve();
+      if (window.lucide) return resolve(true);
       const script = document.createElement('script');
       script.src = ICON_HOST;
       script.async = true;
-      script.onload = resolve;
-      script.onerror = resolve;
+      script.onload = () => resolve(true);
+      script.onerror = () => resolve(false);
       document.head.appendChild(script);
     });
   }
@@ -54,36 +54,27 @@
   function replaceLegacyIcons(root) {
     const scope = root && root.querySelectorAll ? root : document;
     const nodes = scope.querySelectorAll('.nav-icon, .stat-icon, .activity-icon, .empty-icon, .shortcut-icon, .action-icon, .modal-icon, .status-icon, button, a');
+
     nodes.forEach((el) => {
       if (el.closest('svg, [data-lucide]')) return;
       const walker = document.createTreeWalker(el, NodeFilter.SHOW_TEXT);
       const textNodes = [];
       while (walker.nextNode()) textNodes.push(walker.currentNode);
+
       textNodes.forEach((node) => {
         const raw = node.nodeValue || '';
-        const key = normalize(raw);
-        const iconName = ICONS[key] || ICONS[raw];
-        if (!iconName) return;
+        const iconName = ICONS[normalize(raw)] || ICONS[raw];
+        if (!iconName || !node.parentNode) return;
         node.parentNode.replaceChild(iconForName(iconName), node);
       });
     });
+
     if (window.lucide && typeof window.lucide.createIcons === 'function') {
       window.lucide.createIcons({ attrs: { 'stroke-width': 1.85 } });
     }
   }
 
-  function registerAutoUpdate() {
-    if (!('serviceWorker' in navigator)) return;
-    window.addEventListener('load', async () => {
-      try {
-        const registration = await navigator.serviceWorker.register('./sw.js?v=13', { updateViaCache: 'none' });
-        await registration.update();
-      } catch (_) {}
-    }, { once: true });
-  }
-
   function boot() {
-    registerAutoUpdate();
     const style = document.createElement('style');
     style.textContent = `
       .ui-icon{width:1.08em;height:1.08em;display:inline-block;vertical-align:-.18em;flex:none;stroke-width:1.85;transition:transform .2s ease,opacity .2s ease,color .2s ease}
@@ -91,16 +82,22 @@
       .nav-icon .ui-icon{width:20px;height:20px}.stat-icon .ui-icon{width:24px;height:24px}.activity-icon .ui-icon,.shortcut-icon .ui-icon{width:19px;height:19px}.action-icon .ui-icon,.modal-icon .ui-icon,.status-icon .ui-icon{width:18px;height:18px}
       button .ui-icon,a .ui-icon{margin-inline-end:.28em}button:hover .ui-icon,a:hover .ui-icon{transform:translateY(-1px)}.nav-link:hover .ui-icon{transform:translateX(-2px)}.nav-link.active .ui-icon{stroke-width:2}
       .dark-mode-toggle .ui-icon{margin:0;width:19px;height:19px}
-      .icon-tile[data-icon-tone="mint"],.stat-icon[data-icon-tone="mint"]{background:#eaf6ee;color:#4d9070}.icon-tile[data-icon-tone="lavender"],.stat-icon[data-icon-tone="lavender"]{background:#f0ebf7;color:#78649c}.icon-tile[data-icon-tone="blush"],.stat-icon[data-icon-tone="blush"]{background:#fbecef;color:#b86c7b}.icon-tile[data-icon-tone="butter"],.stat-icon[data-icon-tone="butter"]{background:#fff5dc;color:#b98222}.icon-tile[data-icon-tone="sky"],.stat-icon[data-icon-tone="sky"]{background:#eaf3f9;color:#47779d}
       @media(max-width:600px){.nav-icon .ui-icon{width:18px;height:18px}.stat-icon .ui-icon{width:21px;height:21px}}
     `;
     document.head.appendChild(style);
+
     loadLucide().then(() => {
       replaceLegacyIcons(document);
-      const observer = new MutationObserver((mutations) => mutations.forEach((m) => m.addedNodes.forEach((node) => { if (node.nodeType === 1) replaceLegacyIcons(node); })));
-      observer.observe(document.body, { childList:true, subtree:true });
+      if (!document.body) return;
+      const observer = new MutationObserver((mutations) => {
+        mutations.forEach((mutation) => mutation.addedNodes.forEach((node) => {
+          if (node.nodeType === 1) replaceLegacyIcons(node);
+        }));
+      });
+      observer.observe(document.body, { childList: true, subtree: true });
     });
   }
 
-  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', boot); else boot();
+  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', boot, { once: true });
+  else boot();
 })();
