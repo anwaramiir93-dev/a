@@ -1,8 +1,9 @@
-const CACHE_NAME = 'moallemi-v13';
-const APP_VERSION = '13';
+const CACHE_NAME = 'moallemi-v14';
+const APP_VERSION = '14';
 
 const ASSETS = [
   './', './index.html', './css/style.css',
+  './js/core.js',
   './js/storage.js', './js/data.js', './js/dashboard.js', './js/students.js', './js/groups.js',
   './js/attendance.js', './js/grades.js', './js/homework.js', './js/payments.js', './js/reports.js',
   './js/notifications.js', './js/settings.js', './js/icons.js', './js/app.js', './js/app-enhancements.js',
@@ -44,10 +45,46 @@ async function networkFirst(request) {
   }
 }
 
+async function appShellResponse(request) {
+  const response = await networkFirst(request);
+  if (!response || !response.ok) return response;
+
+  // Inject the shared runtime without requiring every HTML deployment
+  // to remember another script tag. This keeps the legacy vanilla-JS
+  // architecture intact while giving all modules one runtime layer.
+  const contentType = response.headers.get('content-type') || '';
+  if (!contentType.includes('text/html')) return response;
+
+  try {
+    const source = await response.text();
+    if (source.includes('js/core.js')) return new Response(source, response);
+
+    const injected = source.replace(
+      /<\/body>/i,
+      '    <script src="js/core.js?v=14" defer></script>\n</body>'
+    );
+
+    const headers = new Headers(response.headers);
+    headers.set('content-type', 'text/html; charset=utf-8');
+    return new Response(injected, {
+      status: response.status,
+      statusText: response.statusText,
+      headers
+    });
+  } catch (_) {
+    return response;
+  }
+}
+
 self.addEventListener('fetch', event => {
   if (event.request.method !== 'GET') return;
   const url = new URL(event.request.url);
   if (url.origin !== self.location.origin) return;
+
+  if (url.pathname.endsWith('/') || url.pathname.endsWith('/index.html')) {
+    event.respondWith(appShellResponse(event.request));
+    return;
+  }
 
   event.respondWith(networkFirst(event.request));
 });
