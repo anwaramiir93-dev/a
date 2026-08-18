@@ -1,10 +1,10 @@
-const CACHE_NAME = 'student-management-v6-guardian-whatsapp';
+const CACHE_NAME = 'student-management-v7-report-downloads';
 
 const ASSETS_TO_CACHE = [
   './', './index.html', './css/style.css', './css/andalusian.css', './css/premium-andalusian.css',
   './js/storage.js', './js/data.js', './js/dashboard.js', './js/students.js', './js/groups.js',
   './js/attendance.js', './js/grades.js', './js/homework.js', './js/payments.js', './js/reports.js',
-  './js/notifications.js', './js/settings.js', './js/icons.js', './js/whatsapp-report.js', './js/guardian-whatsapp.js', './js/app.js',
+  './js/notifications.js', './js/settings.js', './js/icons.js', './js/whatsapp-report.js', './js/guardian-whatsapp.js', './js/report-downloads.js', './js/app.js',
   './assets/logo.png', './assets/logo-small.png', './assets/favicon.png', './assets/icon-192.png',
   './assets/icon-512.png', './manifest.json'
 ];
@@ -63,6 +63,7 @@ self.addEventListener('fetch', event => {
         let injected = html;
         if (!injected.includes('whatsapp-report.js')) injected = injected.replace('</body>', '<script src="js/whatsapp-report.js"></script>\n</body>');
         if (!injected.includes('guardian-whatsapp.js')) injected = injected.replace('</body>', '<script src="js/guardian-whatsapp.js"></script>\n</body>');
+        if (!injected.includes('report-downloads.js')) injected = injected.replace('</body>', '<script src="js/report-downloads.js"></script>\n</body>');
         return new Response(injected, {status: response.status, headers: {'Content-Type':'text/html; charset=utf-8','Cache-Control':'no-cache'}});
       } catch (_) { return caches.match(event.request); }
     })());
