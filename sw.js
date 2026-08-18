@@ -1,10 +1,10 @@
-const CACHE_NAME = 'student-management-v5-whatsapp-report';
+const CACHE_NAME = 'student-management-v6-guardian-whatsapp';
 
 const ASSETS_TO_CACHE = [
   './', './index.html', './css/style.css', './css/andalusian.css', './css/premium-andalusian.css',
   './js/storage.js', './js/data.js', './js/dashboard.js', './js/students.js', './js/groups.js',
   './js/attendance.js', './js/grades.js', './js/homework.js', './js/payments.js', './js/reports.js',
-  './js/notifications.js', './js/settings.js', './js/icons.js', './js/whatsapp-report.js', './js/app.js',
+  './js/notifications.js', './js/settings.js', './js/icons.js', './js/whatsapp-report.js', './js/guardian-whatsapp.js', './js/app.js',
   './assets/logo.png', './assets/logo-small.png', './assets/favicon.png', './assets/icon-192.png',
   './assets/icon-512.png', './manifest.json'
 ];
@@ -54,13 +54,15 @@ self.addEventListener('fetch', event => {
     return;
   }
 
-  // Inject the WhatsApp report module without changing the existing HTML/layout.
+  // Inject feature modules without changing the existing HTML layout.
   if (url.pathname.endsWith('/index.html') || url.pathname.endsWith('/a/')) {
     event.respondWith((async () => {
       try {
         const response = await fetch(event.request);
         const html = await response.text();
-        const injected = html.includes('whatsapp-report.js') ? html : html.replace('</body>', '<script src="js/whatsapp-report.js"></script>\n</body>');
+        let injected = html;
+        if (!injected.includes('whatsapp-report.js')) injected = injected.replace('</body>', '<script src="js/whatsapp-report.js"></script>\n</body>');
+        if (!injected.includes('guardian-whatsapp.js')) injected = injected.replace('</body>', '<script src="js/guardian-whatsapp.js"></script>\n</body>');
         return new Response(injected, {status: response.status, headers: {'Content-Type':'text/html; charset=utf-8','Cache-Control':'no-cache'}});
       } catch (_) { return caches.match(event.request); }
     })());
