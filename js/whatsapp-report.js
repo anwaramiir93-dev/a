@@ -1,10 +1,9 @@
-/* WhatsApp student report: client-side, no server required. */
+/* One-click detailed student report for WhatsApp. Client-side only. */
 const WhatsAppReport = {
   normalizePhone(phone) {
     if (!phone) return '';
     let value = String(phone).replace(/[^\d+]/g, '');
     if (value.startsWith('00')) value = '+' + value.slice(2);
-    // Egypt convenience: 01xxxxxxxxx -> +20 1xxxxxxxxx
     if (/^01\d{9}$/.test(value)) value = '+20' + value.slice(1);
     return value.replace(/\D/g, '');
   },
@@ -38,33 +37,25 @@ const WhatsAppReport = {
   buildMessage(data) {
     const { student, group, attendance, grades, attendanceRate, gradeAverage, paid, partial, outstanding } = data;
     const date = DemoData.getArabicDate(DemoData.getTodayDate());
-    const lines = [
-      '📚 *معلمي | تقرير متابعة الطالب*',
-      '',
+    return [
+      '📚 *معلمي | تقرير متابعة الطالب*','',
       `👤 *الطالب:* ${student.name}`,
       `📁 *المجموعة:* ${group ? group.name : '-'}`,
-      `📅 *تاريخ التقرير:* ${date}`,
-      '',
+      `📅 *تاريخ التقرير:* ${date}`,'',
       '📊 *ملخص الأداء*',
       `• الحضور: ${attendanceRate}% (${attendance.length} سجل)`,
       `• حاضر/متأخر: ${data.present}`,
       `• غياب: ${data.absent}`,
-      `• متوسط الدرجات: ${gradeAverage ? gradeAverage + '%' : 'لا توجد درجات'}`,
-      '',
+      `• متوسط الدرجات: ${gradeAverage ? gradeAverage + '%' : 'لا توجد درجات'}`,'',
       '📝 *آخر الدرجات*',
-      ...(grades.length ? grades.slice(-5).reverse().map(g => `• ${g.examName || 'اختبار'}${g.subject ? ' - ' + g.subject : ''}: ${g.score ?? '-'} / ${g.total || 100} (${g.percentage != null ? g.percentage + '%' : '—'})`) : ['• لا توجد درجات مسجلة']),
-      '',
+      ...(grades.length ? grades.slice(-5).reverse().map(g => `• ${g.examName || 'اختبار'}${g.subject ? ' - ' + g.subject : ''}: ${g.score ?? '-'} / ${g.total || 100} (${g.percentage != null ? g.percentage + '%' : '—'})`) : ['• لا توجد درجات مسجلة']),'',
       '💳 *المدفوعات*',
       `• المدفوع: ${paid.toFixed(2)}`,
       `• مدفوع جزئيًا: ${partial.toFixed(2)}`,
-      `• غير مدفوع: ${outstanding.toFixed(2)}`,
-      '',
-      '🎯 *ملاحظة المعلم*',
-      student.notes || 'لا توجد ملاحظات إضافية.',
-      '',
+      `• غير مدفوع: ${outstanding.toFixed(2)}`,'',
+      '🎯 *ملاحظة المعلم*', student.notes || 'لا توجد ملاحظات إضافية.','',
       'مع تحيات *معلمي | Moallemi* 🌿'
-    ];
-    return lines.join('\n');
+    ].join('\n');
   },
 
   send(studentId) {
@@ -75,11 +66,44 @@ const WhatsAppReport = {
       App.showToast('أضف رقم ولي الأمر في بيانات الطالب أولاً', 'error');
       return;
     }
-    const message = this.buildMessage(data);
-    const url = `https://wa.me/${phone}?text=${encodeURIComponent(message)}`;
+    const url = `https://wa.me/${phone}?text=${encodeURIComponent(this.buildMessage(data))}`;
     window.open(url, '_blank', 'noopener,noreferrer');
     if (typeof App.addActivity === 'function') App.addActivity('تم تجهيز تقرير واتساب للطالب: ' + data.student.name, 'report');
+  },
+
+  installButton() {
+    const modal = document.getElementById('modal-student-details');
+    if (!modal || modal.dataset.whatsappReady === '1') return;
+    modal.dataset.whatsappReady = '1';
+    const header = modal.querySelector('.modal-header');
+    if (!header) return;
+    const button = document.createElement('button');
+    button.type = 'button';
+    button.id = 'btn-whatsapp-student-report';
+    button.className = 'btn btn-whatsapp-report';
+    button.title = 'إرسال تقرير مفصل لولي الأمر عبر واتساب';
+    button.innerHTML = '<span aria-hidden="true">◉</span> إرسال التقرير عبر واتساب';
+    const close = header.querySelector('.modal-close-btn');
+    header.insertBefore(button, close || null);
+    button.addEventListener('click', () => {
+      const name = (document.getElementById('detail-student-name')?.textContent || '').trim();
+      const student = (StorageManager.get('sm_students') || []).find(s => s.name === name);
+      if (student) this.send(student.id);
+    });
+  },
+
+  boot() {
+    const style = document.createElement('style');
+    style.textContent = `.btn-whatsapp-report{margin-inline-start:auto;margin-inline-end:10px;background:linear-gradient(135deg,#16877e,#0f706b);color:#fff;border:0;border-radius:12px;padding:9px 14px;font-weight:800;box-shadow:0 7px 18px rgba(15,118,110,.18);transition:.2s}.btn-whatsapp-report:hover{transform:translateY(-2px);box-shadow:0 10px 24px rgba(15,118,110,.25)}.btn-whatsapp-report span{display:inline-block;margin-inline-end:6px}@media(max-width:600px){.btn-whatsapp-report{font-size:11px;padding:8px 10px}.btn-whatsapp-report span{display:none}}`;
+    document.head.appendChild(style);
+    const observer = new MutationObserver(() => {
+      const modal = document.getElementById('modal-student-details');
+      if (modal && !modal.classList.contains('hidden')) this.installButton();
+    });
+    observer.observe(document.body, { childList:true, subtree:true, attributes:true, attributeFilter:['class'] });
   }
 };
 
 window.WhatsAppReport = WhatsAppReport;
+if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', () => WhatsAppReport.boot());
+else WhatsAppReport.boot();
