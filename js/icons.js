@@ -1,4 +1,4 @@
-/* Premium icon system + final visual theme loader. */
+/* Premium icon system + final visual theme loader + automatic update registration. */
 (function () {
   'use strict';
 
@@ -45,6 +45,21 @@
     });
   }
 
+  function registerAutoUpdate() {
+    if (!('serviceWorker' in navigator)) return;
+    window.addEventListener('load', async () => {
+      try {
+        const registration = await navigator.serviceWorker.register('./sw.js?v=12', { updateViaCache: 'none' });
+        await registration.update();
+        navigator.serviceWorker.addEventListener('controllerchange', () => {
+          if (sessionStorage.getItem('moallemi-ui-refresh-v12') === '1') return;
+          sessionStorage.setItem('moallemi-ui-refresh-v12', '1');
+          window.location.reload();
+        }, { once: true });
+      } catch (_) {}
+    }, { once: true });
+  }
+
   function loadLucide() {
     return new Promise((resolve) => {
       if (window.lucide) return resolve();
@@ -89,6 +104,7 @@
 
   function boot() {
     loadStyles();
+    registerAutoUpdate();
     const style = document.createElement('style');
     style.textContent = `
       .ui-icon{width:1.08em;height:1.08em;display:inline-block;vertical-align:-.18em;flex:none;stroke-width:1.85;transition:transform .2s ease,opacity .2s ease,color .2s ease;}
