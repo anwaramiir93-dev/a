@@ -1,4 +1,5 @@
-const CACHE_NAME = 'student-management-v7-report-downloads';
+const CACHE_NAME = 'student-management-v8-auto-refresh';
+const APP_VERSION = '8';
 
 const ASSETS_TO_CACHE = [
   './', './index.html', './css/style.css', './css/andalusian.css', './css/premium-andalusian.css',
@@ -10,24 +11,36 @@ const ASSETS_TO_CACHE = [
 ];
 
 self.addEventListener('install', event => {
-  event.waitUntil(caches.open(CACHE_NAME).then(cache => cache.addAll(ASSETS_TO_CACHE).catch(() => {})));
+  event.waitUntil((async () => {
+    const cache = await caches.open(CACHE_NAME);
+    await cache.addAll(ASSETS_TO_CACHE.map(path => `${path}?v=${APP_VERSION}`).map(url => new Request(url, {cache:'reload'})).map(async request => {
+      try { return await fetch(request); } catch (_) { return null; }
+    }).map(async result => result));
+  })());
   self.skipWaiting();
 });
 
 self.addEventListener('activate', event => {
-  event.waitUntil(caches.keys().then(names => Promise.all(names.filter(name => name !== CACHE_NAME).map(name => caches.delete(name)))));
-  self.clients.claim();
+  event.waitUntil((async () => {
+    const names = await caches.keys();
+    await Promise.all(names.filter(name => name !== CACHE_NAME).map(name => caches.delete(name)));
+    await self.clients.claim();
+    const clients = await self.clients.matchAll({type:'window', includeUncontrolled:true});
+    clients.forEach(client => client.postMessage({type:'APP_UPDATED', version:APP_VERSION}));
+  })());
 });
 
-async function getNetworkOrCache(request) {
+async function networkFirst(request) {
   try {
-    const response = await fetch(request);
+    const response = await fetch(request, {cache:'no-store'});
     if (response && response.ok) {
       const cache = await caches.open(CACHE_NAME);
-      cache.put(request, response.clone());
+      await cache.put(request, response.clone());
     }
     return response;
-  } catch (_) { return caches.match(request); }
+  } catch (_) {
+    return caches.match(request) || caches.match(new Request('./index.html'));
+  }
 }
 
 self.addEventListener('fetch', event => {
@@ -37,38 +50,27 @@ self.addEventListener('fetch', event => {
   if (url.pathname.endsWith('/css/style.css')) {
     event.respondWith((async () => {
       try {
-        const responses = await Promise.all([
-          fetch(event.request),
-          fetch(new URL('./css/andalusian.css', self.location.origin)),
-          fetch(new URL('./css/premium-andalusian.css', self.location.origin))
+        const [baseResponse, heritageResponse, premiumResponse] = await Promise.all([
+          fetch(`${new URL('./css/style.css', self.location.origin)}?v=${APP_VERSION}`, {cache:'no-store'}),
+          fetch(`${new URL('./css/andalusian.css', self.location.origin)}?v=${APP_VERSION}`, {cache:'no-store'}),
+          fetch(`${new URL('./css/premium-andalusian.css', self.location.origin)}?v=${APP_VERSION}`, {cache:'no-store'})
         ]);
-        const base = await responses[0].text();
-        const heritage = await responses[1].text();
-        const premium = await responses[2].text();
-        return new Response(base + '\n/* Andalusian Heritage */\n' + heritage + '\n/* Premium Modern EdTech */\n' + premium, {
-          status: 200,
-          headers: {'Content-Type':'text/css; charset=utf-8','Cache-Control':'no-cache'}
+        const base = await baseResponse.text();
+        const heritage = await heritageResponse.text();
+        const premium = await premiumResponse.text();
+        return new Response(`${base}\n/* Andalusian Heritage */\n${heritage}\n/* Premium Modern EdTech */\n${premium}`, {
+          status:200,
+          headers:{'Content-Type':'text/css; charset=utf-8','Cache-Control':'no-store'}
         });
       } catch (_) { return caches.match(event.request); }
     })());
     return;
   }
 
-  // Inject feature modules without changing the existing HTML layout.
-  if (url.pathname.endsWith('/index.html') || url.pathname.endsWith('/a/')) {
-    event.respondWith((async () => {
-      try {
-        const response = await fetch(event.request);
-        const html = await response.text();
-        let injected = html;
-        if (!injected.includes('whatsapp-report.js')) injected = injected.replace('</body>', '<script src="js/whatsapp-report.js"></script>\n</body>');
-        if (!injected.includes('guardian-whatsapp.js')) injected = injected.replace('</body>', '<script src="js/guardian-whatsapp.js"></script>\n</body>');
-        if (!injected.includes('report-downloads.js')) injected = injected.replace('</body>', '<script src="js/report-downloads.js"></script>\n</body>');
-        return new Response(injected, {status: response.status, headers: {'Content-Type':'text/html; charset=utf-8','Cache-Control':'no-cache'}});
-      } catch (_) { return caches.match(event.request); }
-    })());
+  if (url.pathname.endsWith('/index.html') || /\/a\/?$/.test(url.pathname)) {
+    event.respondWith(networkFirst(event.request));
     return;
   }
 
-  event.respondWith(getNetworkOrCache(event.request));
+  event.respondWith(networkFirst(event.request));
 });
