@@ -1,27 +1,14 @@
 {
-  "name": "معلمي | Moallemi",
-  "short_name": "معلمي",
-  "description": "معلمي | Moallemi — منصة حديثة لإدارة الطلاب والمجموعات والحضور والدرجات والواجبات والمدفوعات والتقارير",
-  "start_url": "./index.html?v=11",
-  "display": "standalone",
-  "background_color": "#fbfaf6",
-  "theme_color": "#087d83",
-  "orientation": "any",
-  "dir": "rtl",
-  "lang": "ar",
-  "icons": [
-    {
-      "src": "assets/icon-192.png",
-      "sizes": "192x192",
-      "type": "image/png",
-      "purpose": "any maskable"
-    },
-    {
-      "src": "assets/icon-512.png",
-      "sizes": "512x512",
-      "type": "image/png",
-      "purpose": "any maskable"
-    }
-  ],
-  "categories": ["education", "productivity"]
+  "name":"معلمي | Moallemi",
+  "short_name":"معلمي",
+  "description":"منصة عربية حديثة لإدارة الطلاب والحضور والدرجات والواجبات والمدفوعات والتقارير",
+  "start_url":"./index.html?v=2026",
+  "display":"standalone",
+  "background_color":"#f7f4ed",
+  "theme_color":"#0f766e",
+  "orientation":"any",
+  "dir":"rtl",
+  "lang":"ar",
+  "icons":[{"src":"assets/icon-192.png","sizes":"192x192","type":"image/png","purpose":"any maskable"},{"src":"assets/icon-512.png","sizes":"512x512","type":"image/png","purpose":"any maskable"}],
+  "categories":["education","productivity"]
 }
