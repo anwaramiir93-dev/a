@@ -28,6 +28,11 @@ self.addEventListener('activate', event => {
     const names = await caches.keys();
     await Promise.all(names.filter(name => name !== CACHE_NAME).map(name => caches.delete(name)));
     await self.clients.claim();
+    // Refresh already-open app tabs once so the newest UI reaches users automatically.
+    const clients = await self.clients.matchAll({type:'window', includeUncontrolled:true});
+    await Promise.all(clients.map(client => {
+      try { return client.navigate(client.url); } catch (_) { return null; }
+    }));
   })());
 });
 
@@ -48,9 +53,7 @@ async function themedIndex(request) {
   try {
     const response = await fetch(request, {cache:'no-store'});
     const html = await response.text();
-    const injected = html.replace('</body>', `
-      <script src="./js/app-enhancements.js?v=${APP_VERSION}"></script>
-    </body>`);
+    const injected = html.replace('</body>', `\n      <script src="./js/app-enhancements.js?v=${APP_VERSION}"></script>\n    </body>`);
     const result = new Response(injected, {
       status: response.status,
       statusText: response.statusText,
