@@ -1,4 +1,4 @@
-/* Premium icon system + guaranteed visual theme loader. */
+/* Premium icon system + final visual theme loader. */
 (function () {
   'use strict';
 
@@ -30,12 +30,17 @@
   };
 
   function loadStyles() {
-    if (document.getElementById('premium-andalusian-theme')) return;
-    ['css/andalusian.css','css/premium-andalusian.css'].forEach((href, index) => {
+    const styles = [
+      ['andalusian-theme','css/andalusian.css?v=2026-08-18-premium'],
+      ['premium-andalusian-theme','css/premium-andalusian.css?v=2026-08-18-premium'],
+      ['reference-final-theme','css/reference-final.css?v=2026-08-18-final']
+    ];
+    styles.forEach(([id, href]) => {
+      if (document.getElementById(id)) return;
       const link = document.createElement('link');
-      link.id = index === 0 ? 'andalusian-theme' : 'premium-andalusian-theme';
+      link.id = id;
       link.rel = 'stylesheet';
-      link.href = href + '?v=2026-08-18-premium';
+      link.href = href;
       document.head.appendChild(link);
     });
   }
@@ -63,7 +68,7 @@
 
   function replaceLegacyIcons(root) {
     const scope = root && root.querySelectorAll ? root : document;
-    const nodes = scope.querySelectorAll('.nav-icon, .stat-icon, .activity-icon, .empty-icon, .shortcut-icon, .action-icon, .modal-icon, .status-icon, .sub-title, button, a');
+    const nodes = scope.querySelectorAll('.nav-icon, .stat-icon, .activity-icon, .empty-icon, .shortcut-icon, .action-icon, .modal-icon, .status-icon, button, a');
     nodes.forEach((el) => {
       if (el.closest('svg, [data-lucide]')) return;
       const walker = document.createTreeWalker(el, NodeFilter.SHOW_TEXT);
