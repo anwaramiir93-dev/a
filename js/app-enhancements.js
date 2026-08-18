@@ -1,7 +1,7 @@
-/* Final app bootstrap: brand + modern theme + optional feature modules. */
+/* Final app bootstrap: brand + final reference theme + optional feature modules. */
 (function () {
   'use strict';
-  const VERSION = '10';
+  const VERSION = '11';
 
   function load(src) {
     return new Promise((resolve) => {
@@ -18,7 +18,7 @@
   function applyBrand() {
     document.title = 'معلمي | Moallemi';
     const meta = document.querySelector('meta[name="theme-color"]');
-    if (meta) meta.setAttribute('content', '#0f766e');
+    if (meta) meta.setAttribute('content', '#087d83');
 
     const replacements = [
       ['.sidebar-brand', 'معلمي | Moallemi'],
