@@ -1,8 +1,8 @@
-const CACHE_NAME = 'student-management-v10-final-ui';
-const APP_VERSION = '10';
+const CACHE_NAME = 'student-management-v11-reference-theme';
+const APP_VERSION = '11';
 
 const ASSETS = [
-  './', './index.html', './css/style.css', './css/andalusian.css', './css/premium-andalusian.css',
+  './', './index.html', './css/style.css', './css/andalusian.css', './css/premium-andalusian.css', './css/reference-final.css',
   './js/storage.js', './js/data.js', './js/dashboard.js', './js/students.js', './js/groups.js',
   './js/attendance.js', './js/grades.js', './js/homework.js', './js/payments.js', './js/reports.js',
   './js/notifications.js', './js/settings.js', './js/icons.js', './js/app.js', './js/app-enhancements.js',
@@ -28,7 +28,6 @@ self.addEventListener('activate', event => {
     const names = await caches.keys();
     await Promise.all(names.filter(name => name !== CACHE_NAME).map(name => caches.delete(name)));
     await self.clients.claim();
-    // Refresh already-open app tabs once so the newest UI reaches users automatically.
     const clients = await self.clients.matchAll({type:'window', includeUncontrolled:true});
     await Promise.all(clients.map(client => {
       try { return client.navigate(client.url); } catch (_) { return null; }
@@ -69,12 +68,13 @@ async function themedIndex(request) {
 
 async function themedCss(request) {
   try {
-    const [base, heritage, premium] = await Promise.all([
+    const [base, heritage, premium, reference] = await Promise.all([
       fetch(`./css/style.css?v=${APP_VERSION}`, {cache:'no-store'}),
       fetch(`./css/andalusian.css?v=${APP_VERSION}`, {cache:'no-store'}),
-      fetch(`./css/premium-andalusian.css?v=${APP_VERSION}`, {cache:'no-store'})
+      fetch(`./css/premium-andalusian.css?v=${APP_VERSION}`, {cache:'no-store'}),
+      fetch(`./css/reference-final.css?v=${APP_VERSION}`, {cache:'no-store'})
     ]);
-    const css = `${await base.text()}\n/* Andalusian Heritage */\n${await heritage.text()}\n/* Premium Modern EdTech */\n${await premium.text()}`;
+    const css = `${await base.text()}\n/* Andalusian Heritage */\n${await heritage.text()}\n/* Premium Modern EdTech */\n${await premium.text()}\n/* Final Reference Theme */\n${await reference.text()}`;
     return new Response(css, {status:200, headers:{'Content-Type':'text/css; charset=utf-8','Cache-Control':'no-store'}});
   } catch (_) {
     return caches.match(request);
