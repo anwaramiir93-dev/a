@@ -1,5 +1,5 @@
-const CACHE_NAME = 'student-management-v11-reference-theme';
-const APP_VERSION = '11';
+const CACHE_NAME = 'student-management-v12-reference-theme';
+const APP_VERSION = '12';
 
 const ASSETS = [
   './', './index.html', './css/style.css', './css/andalusian.css', './css/premium-andalusian.css', './css/reference-final.css',
@@ -52,7 +52,7 @@ async function themedIndex(request) {
   try {
     const response = await fetch(request, {cache:'no-store'});
     const html = await response.text();
-    const injected = html.replace('</body>', `\n      <script src="./js/app-enhancements.js?v=${APP_VERSION}"></script>\n    </body>`);
+    const injected = html.replace('</head>', `\n      <link rel="stylesheet" href="./css/reference-final.css?v=${APP_VERSION}">\n    </head>`).replace('</body>', `\n      <script src="./js/app-enhancements.js?v=${APP_VERSION}"></script>\n    </body>`);
     const result = new Response(injected, {
       status: response.status,
       statusText: response.statusText,
