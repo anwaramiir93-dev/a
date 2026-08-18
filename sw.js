@@ -1,23 +1,26 @@
-const CACHE_NAME = 'student-management-v8-auto-refresh';
-const APP_VERSION = '8';
+const CACHE_NAME = 'student-management-v10-final-ui';
+const APP_VERSION = '10';
 
-const ASSETS_TO_CACHE = [
+const ASSETS = [
   './', './index.html', './css/style.css', './css/andalusian.css', './css/premium-andalusian.css',
   './js/storage.js', './js/data.js', './js/dashboard.js', './js/students.js', './js/groups.js',
   './js/attendance.js', './js/grades.js', './js/homework.js', './js/payments.js', './js/reports.js',
-  './js/notifications.js', './js/settings.js', './js/icons.js', './js/whatsapp-report.js', './js/guardian-whatsapp.js', './js/report-downloads.js', './js/app.js',
-  './assets/logo.png', './assets/logo-small.png', './assets/favicon.png', './assets/icon-192.png',
-  './assets/icon-512.png', './manifest.json'
+  './js/notifications.js', './js/settings.js', './js/icons.js', './js/app.js', './js/app-enhancements.js',
+  './js/whatsapp-report.js', './js/guardian-whatsapp.js', './js/report-downloads.js',
+  './assets/logo.png', './assets/logo-small.png', './assets/favicon.png', './assets/icon-192.png', './assets/icon-512.png', './manifest.json'
 ];
 
 self.addEventListener('install', event => {
   event.waitUntil((async () => {
     const cache = await caches.open(CACHE_NAME);
-    await cache.addAll(ASSETS_TO_CACHE.map(path => `${path}?v=${APP_VERSION}`).map(url => new Request(url, {cache:'reload'})).map(async request => {
-      try { return await fetch(request); } catch (_) { return null; }
-    }).map(async result => result));
+    await Promise.all(ASSETS.map(async asset => {
+      try {
+        const response = await fetch(`${asset}?v=${APP_VERSION}`, {cache:'reload'});
+        if (response.ok) await cache.put(asset, response.clone());
+      } catch (_) {}
+    }));
+    self.skipWaiting();
   })());
-  self.skipWaiting();
 });
 
 self.addEventListener('activate', event => {
@@ -25,8 +28,6 @@ self.addEventListener('activate', event => {
     const names = await caches.keys();
     await Promise.all(names.filter(name => name !== CACHE_NAME).map(name => caches.delete(name)));
     await self.clients.claim();
-    const clients = await self.clients.matchAll({type:'window', includeUncontrolled:true});
-    clients.forEach(client => client.postMessage({type:'APP_UPDATED', version:APP_VERSION}));
   })());
 });
 
@@ -39,38 +40,56 @@ async function networkFirst(request) {
     }
     return response;
   } catch (_) {
-    return caches.match(request) || caches.match(new Request('./index.html'));
+    return caches.match(request);
+  }
+}
+
+async function themedIndex(request) {
+  try {
+    const response = await fetch(request, {cache:'no-store'});
+    const html = await response.text();
+    const injected = html.replace('</body>', `
+      <script src="./js/app-enhancements.js?v=${APP_VERSION}"></script>
+    </body>`);
+    const result = new Response(injected, {
+      status: response.status,
+      statusText: response.statusText,
+      headers: {'Content-Type':'text/html; charset=utf-8','Cache-Control':'no-store'}
+    });
+    const cache = await caches.open(CACHE_NAME);
+    await cache.put(request, result.clone());
+    return result;
+  } catch (_) {
+    return caches.match(request);
+  }
+}
+
+async function themedCss(request) {
+  try {
+    const [base, heritage, premium] = await Promise.all([
+      fetch(`./css/style.css?v=${APP_VERSION}`, {cache:'no-store'}),
+      fetch(`./css/andalusian.css?v=${APP_VERSION}`, {cache:'no-store'}),
+      fetch(`./css/premium-andalusian.css?v=${APP_VERSION}`, {cache:'no-store'})
+    ]);
+    const css = `${await base.text()}\n/* Andalusian Heritage */\n${await heritage.text()}\n/* Premium Modern EdTech */\n${await premium.text()}`;
+    return new Response(css, {status:200, headers:{'Content-Type':'text/css; charset=utf-8','Cache-Control':'no-store'}});
+  } catch (_) {
+    return caches.match(request);
   }
 }
 
 self.addEventListener('fetch', event => {
   if (event.request.method !== 'GET') return;
   const url = new URL(event.request.url);
-
-  if (url.pathname.endsWith('/css/style.css')) {
-    event.respondWith((async () => {
-      try {
-        const [baseResponse, heritageResponse, premiumResponse] = await Promise.all([
-          fetch(`${new URL('./css/style.css', self.location.origin)}?v=${APP_VERSION}`, {cache:'no-store'}),
-          fetch(`${new URL('./css/andalusian.css', self.location.origin)}?v=${APP_VERSION}`, {cache:'no-store'}),
-          fetch(`${new URL('./css/premium-andalusian.css', self.location.origin)}?v=${APP_VERSION}`, {cache:'no-store'})
-        ]);
-        const base = await baseResponse.text();
-        const heritage = await heritageResponse.text();
-        const premium = await premiumResponse.text();
-        return new Response(`${base}\n/* Andalusian Heritage */\n${heritage}\n/* Premium Modern EdTech */\n${premium}`, {
-          status:200,
-          headers:{'Content-Type':'text/css; charset=utf-8','Cache-Control':'no-store'}
-        });
-      } catch (_) { return caches.match(event.request); }
-    })());
-    return;
-  }
+  if (url.origin !== self.location.origin) return;
 
   if (url.pathname.endsWith('/index.html') || /\/a\/?$/.test(url.pathname)) {
-    event.respondWith(networkFirst(event.request));
+    event.respondWith(themedIndex(event.request));
     return;
   }
-
+  if (url.pathname.endsWith('/css/style.css')) {
+    event.respondWith(themedCss(event.request));
+    return;
+  }
   event.respondWith(networkFirst(event.request));
 });
