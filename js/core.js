@@ -1,7 +1,6 @@
 /*
  * Moallemi Frontend Core
  * Shared runtime helpers for the vanilla JS application.
- * Keeps modules independent while providing consistent UX, safety and performance.
  */
 (function (window, document) {
   'use strict';
@@ -27,28 +26,28 @@
 
     debounce(fn, wait = 250) {
       let timer;
-      return function (...args) {
+      return (...args) => {
         clearTimeout(timer);
-        timer = setTimeout(() => fn.apply(this, args), wait);
+        timer = setTimeout(() => fn(...args), wait);
       };
     },
 
     throttle(fn, wait = 100) {
       let last = 0;
-      let timer;
-      return function (...args) {
+      let timer = null;
+      return (...args) => {
         const now = Date.now();
         const remaining = wait - (now - last);
         if (remaining <= 0) {
           clearTimeout(timer);
           timer = null;
           last = now;
-          fn.apply(this, args);
+          fn(...args);
         } else if (!timer) {
           timer = setTimeout(() => {
             last = Date.now();
             timer = null;
-            fn.apply(this, args);
+            fn(...args);
           }, remaining);
         }
       };
@@ -61,45 +60,50 @@
       }
     },
 
+    loadScript(src) {
+      return new Promise((resolve) => {
+        if (document.querySelector(`script[data-moallemi-src="${src}"]`)) return resolve();
+        const script = document.createElement('script');
+        script.src = src;
+        script.dataset.moallemiSrc = src;
+        script.async = true;
+        script.onload = () => resolve(true);
+        script.onerror = () => resolve(false);
+        document.head.appendChild(script);
+      });
+    },
+
     formatNumber(value) {
-      const number = Number(value) || 0;
-      return new Intl.NumberFormat('ar-EG').format(number);
+      return new Intl.NumberFormat('ar-EG').format(Number(value) || 0);
     },
 
     formatCurrency(value) {
-      const number = Number(value) || 0;
       return new Intl.NumberFormat('ar-EG', {
-        style: 'currency',
-        currency: 'EGP',
-        maximumFractionDigits: 0
-      }).format(number);
+        style: 'currency', currency: 'EGP', maximumFractionDigits: 0
+      }).format(Number(value) || 0);
     },
 
     toast(message, type = 'info') {
-      if (typeof window.showToast === 'function') {
-        window.showToast(message, type);
-        return;
-      }
+      if (typeof window.showToast === 'function') return window.showToast(message, type);
       let host = document.getElementById('moallemi-toast-host');
       if (!host) {
         host = document.createElement('div');
         host.id = 'moallemi-toast-host';
         host.setAttribute('aria-live', 'polite');
-        host.style.cssText = 'position:fixed;z-index:99999;bottom:24px;right:24px;display:grid;gap:10px;max-width:min(380px,calc(100vw - 32px));';
         document.body.appendChild(host);
       }
       const item = document.createElement('div');
       item.textContent = message;
-      item.style.cssText = 'padding:12px 16px;border-radius:14px;background:#fff;color:#17212b;box-shadow:0 12px 30px rgba(0,0,0,.12);border:1px solid rgba(0,0,0,.08);font-weight:700;';
       item.dataset.type = type;
+      item.style.cssText = 'padding:12px 16px;border-radius:14px;background:#fff;color:#17212b;box-shadow:0 12px 30px rgba(0,0,0,.12);border:1px solid rgba(0,0,0,.08);font-weight:700;';
       host.appendChild(item);
       setTimeout(() => item.remove(), 3200);
     },
 
     async updateServiceWorker() {
-      if (!('serviceWorker' in navigator)) return;
+      if (!('serviceWorker' in navigator)) return null;
       try {
-        const registration = await navigator.serviceWorker.register('./sw.js?v=13', { updateViaCache: 'none' });
+        const registration = await navigator.serviceWorker.register('./sw.js?v=14', { updateViaCache: 'none' });
         await registration.update();
         return registration;
       } catch (error) {
@@ -108,16 +112,13 @@
       }
     },
 
-    init() {
+    async init() {
       if (this.ready) return;
       this.ready = true;
       document.documentElement.dataset.appReady = 'true';
       document.documentElement.dataset.appVersion = this.version;
-
-      // Prevent accidental horizontal overflow caused by third-party widgets.
       document.documentElement.style.overflowX = 'hidden';
 
-      // Close menus/modals with Escape where the existing application exposes close methods.
       this.on(document, 'keydown', (event) => {
         if (event.key !== 'Escape') return;
         this.safe(() => window.App?.closeMoreMenu?.());
@@ -125,14 +126,17 @@
         this.safe(() => window.App?.closeModal?.());
       });
 
-      // Make external links safer without changing internal navigation.
       this.$$('a[target="_blank"]').forEach((link) => {
         const rel = new Set((link.getAttribute('rel') || '').split(/\s+/).filter(Boolean));
         rel.add('noopener');
         rel.add('noreferrer');
-        link.setAttribute('rel', Array.from(rel).join(' '));
+        link.setAttribute('rel', [...rel].join(' '));
       });
 
+      // These modules are optional enhancements; loading them centrally avoids
+      // duplicate script tags and keeps the legacy module files independent.
+      await this.loadScript('./js/icons.js?v=14');
+      await this.loadScript('./js/app-enhancements.js?v=14');
       this.updateServiceWorker();
     }
   };
