@@ -1,8 +1,8 @@
-const CACHE_NAME = 'student-management-v12-reference-theme';
-const APP_VERSION = '12';
+const CACHE_NAME = 'moallemi-v13';
+const APP_VERSION = '13';
 
 const ASSETS = [
-  './', './index.html', './css/style.css', './css/andalusian.css', './css/premium-andalusian.css', './css/reference-final.css',
+  './', './index.html', './css/style.css',
   './js/storage.js', './js/data.js', './js/dashboard.js', './js/students.js', './js/groups.js',
   './js/attendance.js', './js/grades.js', './js/homework.js', './js/payments.js', './js/reports.js',
   './js/notifications.js', './js/settings.js', './js/icons.js', './js/app.js', './js/app-enhancements.js',
@@ -15,11 +15,11 @@ self.addEventListener('install', event => {
     const cache = await caches.open(CACHE_NAME);
     await Promise.all(ASSETS.map(async asset => {
       try {
-        const response = await fetch(`${asset}?v=${APP_VERSION}`, {cache:'reload'});
+        const response = await fetch(`${asset}?v=${APP_VERSION}`, { cache: 'reload' });
         if (response.ok) await cache.put(asset, response.clone());
       } catch (_) {}
     }));
-    self.skipWaiting();
+    await self.skipWaiting();
   })());
 });
 
@@ -28,16 +28,12 @@ self.addEventListener('activate', event => {
     const names = await caches.keys();
     await Promise.all(names.filter(name => name !== CACHE_NAME).map(name => caches.delete(name)));
     await self.clients.claim();
-    const clients = await self.clients.matchAll({type:'window', includeUncontrolled:true});
-    await Promise.all(clients.map(client => {
-      try { return client.navigate(client.url); } catch (_) { return null; }
-    }));
   })());
 });
 
 async function networkFirst(request) {
   try {
-    const response = await fetch(request, {cache:'no-store'});
+    const response = await fetch(request, { cache: 'no-store' });
     if (response && response.ok) {
       const cache = await caches.open(CACHE_NAME);
       await cache.put(request, response.clone());
@@ -48,51 +44,10 @@ async function networkFirst(request) {
   }
 }
 
-async function themedIndex(request) {
-  try {
-    const response = await fetch(request, {cache:'no-store'});
-    const html = await response.text();
-    const injected = html.replace('</head>', `\n      <link rel="stylesheet" href="./css/reference-final.css?v=${APP_VERSION}">\n    </head>`).replace('</body>', `\n      <script src="./js/app-enhancements.js?v=${APP_VERSION}"></script>\n    </body>`);
-    const result = new Response(injected, {
-      status: response.status,
-      statusText: response.statusText,
-      headers: {'Content-Type':'text/html; charset=utf-8','Cache-Control':'no-store'}
-    });
-    const cache = await caches.open(CACHE_NAME);
-    await cache.put(request, result.clone());
-    return result;
-  } catch (_) {
-    return caches.match(request);
-  }
-}
-
-async function themedCss(request) {
-  try {
-    const [base, heritage, premium, reference] = await Promise.all([
-      fetch(`./css/style.css?v=${APP_VERSION}`, {cache:'no-store'}),
-      fetch(`./css/andalusian.css?v=${APP_VERSION}`, {cache:'no-store'}),
-      fetch(`./css/premium-andalusian.css?v=${APP_VERSION}`, {cache:'no-store'}),
-      fetch(`./css/reference-final.css?v=${APP_VERSION}`, {cache:'no-store'})
-    ]);
-    const css = `${await base.text()}\n/* Andalusian Heritage */\n${await heritage.text()}\n/* Premium Modern EdTech */\n${await premium.text()}\n/* Final Reference Theme */\n${await reference.text()}`;
-    return new Response(css, {status:200, headers:{'Content-Type':'text/css; charset=utf-8','Cache-Control':'no-store'}});
-  } catch (_) {
-    return caches.match(request);
-  }
-}
-
 self.addEventListener('fetch', event => {
   if (event.request.method !== 'GET') return;
   const url = new URL(event.request.url);
   if (url.origin !== self.location.origin) return;
 
-  if (url.pathname.endsWith('/index.html') || /\/a\/?$/.test(url.pathname)) {
-    event.respondWith(themedIndex(event.request));
-    return;
-  }
-  if (url.pathname.endsWith('/css/style.css')) {
-    event.respondWith(themedCss(event.request));
-    return;
-  }
   event.respondWith(networkFirst(event.request));
 });
