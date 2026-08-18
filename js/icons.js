@@ -1,4 +1,4 @@
-/* Premium icon system + final visual theme loader + automatic update registration. */
+/* Moallemi — unified Lucide icon system */
 (function () {
   'use strict';
 
@@ -21,7 +21,7 @@
   const ICON_HOST = 'https://unpkg.com/lucide@1.28.0/dist/umd/lucide.min.js';
   const ICON_TONE = {
     'chart-no-axes-combined':'mint','chart-line':'lavender','users-round':'lavender','user-round':'lavender',
-    'folder':'blush','circle-check':'mint','clipboard-list':'sky','book-open':'butter','wallet':'mint',
+    'folder':'blush','circle-check':'mint','circle-x':'blush','clipboard-list':'sky','book-open':'butter','wallet':'mint',
     'bell':'blush','settings':'lavender','search':'butter','pin':'sky','moon':'lavender','sun':'blush',
     'calendar-days':'butter','clock-3':'sky','credit-card':'blush','lock':'lavender','house':'mint',
     'trophy':'sky','mail':'butter','star':'lavender','trash-2':'mint','plus':'mint','pencil':'sky',
@@ -29,42 +29,12 @@
     'target':'sky','medal':'butter','calculator':'lavender','timer':'sky','lightbulb':'butter'
   };
 
-  function loadStyles() {
-    const styles = [
-      ['andalusian-theme','css/andalusian.css?v=2026-08-18-premium'],
-      ['premium-andalusian-theme','css/premium-andalusian.css?v=2026-08-18-premium'],
-      ['reference-final-theme','css/reference-final.css?v=2026-08-18-final']
-    ];
-    styles.forEach(([id, href]) => {
-      if (document.getElementById(id)) return;
-      const link = document.createElement('link');
-      link.id = id;
-      link.rel = 'stylesheet';
-      link.href = href;
-      document.head.appendChild(link);
-    });
-  }
-
-  function registerAutoUpdate() {
-    if (!('serviceWorker' in navigator)) return;
-    window.addEventListener('load', async () => {
-      try {
-        const registration = await navigator.serviceWorker.register('./sw.js?v=12', { updateViaCache: 'none' });
-        await registration.update();
-        navigator.serviceWorker.addEventListener('controllerchange', () => {
-          if (sessionStorage.getItem('moallemi-ui-refresh-v12') === '1') return;
-          sessionStorage.setItem('moallemi-ui-refresh-v12', '1');
-          window.location.reload();
-        }, { once: true });
-      } catch (_) {}
-    }, { once: true });
-  }
-
   function loadLucide() {
     return new Promise((resolve) => {
       if (window.lucide) return resolve();
       const script = document.createElement('script');
       script.src = ICON_HOST;
+      script.async = true;
       script.onload = resolve;
       script.onerror = resolve;
       document.head.appendChild(script);
@@ -102,16 +72,25 @@
     }
   }
 
+  function registerAutoUpdate() {
+    if (!('serviceWorker' in navigator)) return;
+    window.addEventListener('load', async () => {
+      try {
+        const registration = await navigator.serviceWorker.register('./sw.js?v=13', { updateViaCache: 'none' });
+        await registration.update();
+      } catch (_) {}
+    }, { once: true });
+  }
+
   function boot() {
-    loadStyles();
     registerAutoUpdate();
     const style = document.createElement('style');
     style.textContent = `
-      .ui-icon{width:1.08em;height:1.08em;display:inline-block;vertical-align:-.18em;flex:none;stroke-width:1.85;transition:transform .2s ease,opacity .2s ease,color .2s ease;}
-      .nav-icon,.stat-icon,.activity-icon,.empty-icon,.shortcut-icon,.action-icon,.modal-icon,.status-icon{display:inline-flex;align-items:center;justify-content:center;}
+      .ui-icon{width:1.08em;height:1.08em;display:inline-block;vertical-align:-.18em;flex:none;stroke-width:1.85;transition:transform .2s ease,opacity .2s ease,color .2s ease}
+      .nav-icon,.stat-icon,.activity-icon,.empty-icon,.shortcut-icon,.action-icon,.modal-icon,.status-icon{display:inline-flex;align-items:center;justify-content:center}
       .nav-icon .ui-icon{width:20px;height:20px}.stat-icon .ui-icon{width:24px;height:24px}.activity-icon .ui-icon,.shortcut-icon .ui-icon{width:19px;height:19px}.action-icon .ui-icon,.modal-icon .ui-icon,.status-icon .ui-icon{width:18px;height:18px}
-      button .ui-icon,a .ui-icon{margin-inline-end:.28em} button:hover .ui-icon,a:hover .ui-icon{transform:translateY(-1px)} .nav-link:hover .ui-icon{transform:translateX(-2px)} .nav-link.active .ui-icon{stroke-width:2}
-      .dark-mode-toggle .ui-icon{margin:0;width:19px;height:19px}.icon-tile,.stat-icon,.shortcut-icon,.activity-icon,.empty-icon{border-radius:15px}
+      button .ui-icon,a .ui-icon{margin-inline-end:.28em}button:hover .ui-icon,a:hover .ui-icon{transform:translateY(-1px)}.nav-link:hover .ui-icon{transform:translateX(-2px)}.nav-link.active .ui-icon{stroke-width:2}
+      .dark-mode-toggle .ui-icon{margin:0;width:19px;height:19px}
       .icon-tile[data-icon-tone="mint"],.stat-icon[data-icon-tone="mint"]{background:#eaf6ee;color:#4d9070}.icon-tile[data-icon-tone="lavender"],.stat-icon[data-icon-tone="lavender"]{background:#f0ebf7;color:#78649c}.icon-tile[data-icon-tone="blush"],.stat-icon[data-icon-tone="blush"]{background:#fbecef;color:#b86c7b}.icon-tile[data-icon-tone="butter"],.stat-icon[data-icon-tone="butter"]{background:#fff5dc;color:#b98222}.icon-tile[data-icon-tone="sky"],.stat-icon[data-icon-tone="sky"]{background:#eaf3f9;color:#47779d}
       @media(max-width:600px){.nav-icon .ui-icon{width:18px;height:18px}.stat-icon .ui-icon{width:21px;height:21px}}
     `;
