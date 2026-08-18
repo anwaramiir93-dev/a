@@ -1,0 +1,116 @@
+(() => {
+  'use strict';
+
+  const SETTINGS_KEY = 'sm_settings';
+  const readSettings = () => {
+    try { return JSON.parse(localStorage.getItem(SETTINGS_KEY) || '{}') || {}; } catch { return {}; }
+  };
+  const saveSettings = (value) => localStorage.setItem(SETTINGS_KEY, JSON.stringify(value));
+  const esc = (value) => String(value ?? '').replace(/[&<>\"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','\"':'&quot;',"'":'&#039;'}[c]));
+
+  function injectStyles() {
+    if (document.getElementById('final-polish-style')) return;
+    const style = document.createElement('style');
+    style.id = 'final-polish-style';
+    style.textContent = `
+      .final-settings-card{margin-top:18px;border:1px solid rgba(15,118,110,.14);background:var(--surface,#fff);border-radius:22px;padding:24px;box-shadow:0 12px 34px rgba(30,50,45,.07)}
+      .final-settings-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:16px}
+      .final-field{display:grid;gap:8px}.final-field label{font-weight:800}.final-field input{width:100%;box-sizing:border-box;border:1px solid rgba(15,118,110,.16);border-radius:14px;padding:13px 15px;background:var(--input-bg,#fff);color:inherit;font:inherit;outline:none}.final-field input:focus{border-color:#0f766e;box-shadow:0 0 0 4px rgba(15,118,110,.09)}
+      .final-settings-actions{display:flex;justify-content:flex-start;gap:10px;margin-top:18px}.final-settings-note{margin:10px 0 0;color:#718078;font-size:.86rem}
+      .final-brand-preview{display:flex;align-items:center;gap:14px;margin-bottom:20px}.final-brand-preview img{width:64px;height:64px;object-fit:contain;border-radius:16px;background:#f7f1e7;padding:6px}.final-brand-preview strong{display:block;font-size:1.05rem}.final-brand-preview span{display:block;color:#7b857f;font-size:.86rem;margin-top:3px}
+      @media(max-width:700px){.final-settings-grid{grid-template-columns:1fr}.final-settings-card{padding:18px}.final-settings-actions .btn{width:100%}}
+    `;
+    document.head.appendChild(style);
+  }
+
+  function updateBrand() {
+    const s = readSettings();
+    const teacher = s.teacherName || s.teacher || 'أمير أنور';
+    const subject = s.subject || s.material || 'التعليم';
+    const header = document.getElementById('header-teacher-name');
+    if (header) header.textContent = teacher;
+    document.querySelectorAll('[data-final-subject]').forEach(el => el.textContent = subject);
+    const title = document.getElementById('page-title');
+    if (title && document.body.dataset.finalSettingsSaved === '1') title.title = `المادة: ${subject}`;
+  }
+
+  function buildSettings() {
+    const section = document.getElementById('section-settings');
+    if (!section || section.querySelector('#final-settings-card')) return;
+    injectStyles();
+    const s = readSettings();
+    const card = document.createElement('article');
+    card.id = 'final-settings-card';
+    card.className = 'final-settings-card';
+    card.innerHTML = `
+      <div class="final-brand-preview">
+        <img src="assets/logo-small.png" alt="معلمي">
+        <div><strong>بيانات المدرس</strong><span>تظهر هذه البيانات في واجهة التطبيق والتقارير.</span></div>
+      </div>
+      <div class="final-settings-grid">
+        <div class="final-field"><label for="final-teacher-name">اسم المدرس</label><input id="final-teacher-name" type="text" maxlength="80" placeholder="مثال: أحمد محمد" value="${esc(s.teacherName || s.teacher || '')}"></div>
+        <div class="final-field"><label for="final-subject">المادة</label><input id="final-subject" type="text" maxlength="80" placeholder="مثال: اللغة الإنجليزية" value="${esc(s.subject || s.material || '')}"></div>
+      </div>
+      <div class="final-settings-actions"><button id="final-save-settings" class="btn btn-primary" type="button">حفظ البيانات</button></div>
+      <p class="final-settings-note">سيتم حفظ اسم المدرس والمادة على هذا الجهاز فقط، ويمكن تعديلهما في أي وقت.</p>
+    `;
+    section.appendChild(card);
+    card.querySelector('#final-save-settings').addEventListener('click', () => {
+      const next = readSettings();
+      next.teacherName = card.querySelector('#final-teacher-name').value.trim();
+      next.subject = card.querySelector('#final-subject').value.trim();
+      saveSettings(next);
+      document.body.dataset.finalSettingsSaved = '1';
+      updateBrand();
+      try { window.dispatchEvent(new CustomEvent('moallemi:settings-updated', {detail: next})); } catch {}
+      const toast = document.getElementById('toast-container');
+      if (toast) { const el=document.createElement('div'); el.className='toast'; el.textContent='تم حفظ اسم المدرس والمادة'; toast.appendChild(el); setTimeout(()=>el.remove(),2600); }
+    });
+  }
+
+  function ensureSettingsSection() {
+    buildSettings();
+    updateBrand();
+  }
+
+  function threeMonthRevenueChart() {
+    if (!window.Chart) return;
+    const canvas = document.getElementById('revenue-bar-chart');
+    if (!canvas) return;
+    const payments = (() => { try { return JSON.parse(localStorage.getItem('sm_payments') || '[]') || []; } catch { return []; } })();
+    const months=[];
+    for(let i=2;i>=0;i--){ const d=new Date(); d.setDate(1); d.setMonth(d.getMonth()-i); months.push(d.toISOString().slice(0,7)); }
+    const values=months.map(m=>payments.filter(p=>p.month===m && p.status==='مدفوع').reduce((sum,p)=>sum+Number(p.amount||0),0));
+    const labels=months.map(m=>new Intl.DateTimeFormat('ar-EG',{month:'short',year:'numeric'}).format(new Date(m+'-01T00:00:00')));
+    const old=window.__moallemiThreeMonthChart;
+    if(old) old.destroy();
+    window.__moallemiThreeMonthChart=new Chart(canvas,{type:'bar',data:{labels,datasets:[{label:'المصاريف / الإيرادات',data:values,backgroundColor:'#0f766e',borderRadius:9,maxBarThickness:42}]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false},title:{display:true,text:'آخر 3 شهور',font:{family:'Cairo',weight:'700',size:14}}},scales:{y:{beginAtZero:true,ticks:{font:{family:'Cairo'}}},x:{grid:{display:false},ticks:{font:{family:'Cairo'}}}}}});
+  }
+
+  function patchDashboardTitle() {
+    const titles = document.querySelectorAll('.chart-panel h3');
+    titles.forEach(h => { if ((h.textContent||'').includes('آخر 6 أشهر')) h.textContent='آخر 3 شهور'; });
+  }
+
+  function boot() {
+    injectStyles();
+    ensureSettingsSection();
+    patchDashboardTitle();
+    updateBrand();
+    const observer = new MutationObserver(() => {
+      if (document.getElementById('section-settings') && !document.getElementById('final-settings-card')) buildSettings();
+      patchDashboardTitle();
+    });
+    observer.observe(document.body,{childList:true,subtree:true});
+    document.addEventListener('click', e => {
+      const nav = e.target.closest('[data-section="settings"]');
+      if (nav) setTimeout(ensureSettingsSection,50);
+      const dash = e.target.closest('[data-section="dashboard"]');
+      if (dash) setTimeout(()=>{patchDashboardTitle();threeMonthRevenueChart();},80);
+    });
+    setTimeout(()=>{patchDashboardTitle();threeMonthRevenueChart();},700);
+    window.addEventListener('moallemi:settings-updated', updateBrand);
+  }
+
+  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', boot, {once:true}); else boot();
+})();
