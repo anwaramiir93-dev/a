@@ -1,5 +1,5 @@
-const CACHE_NAME = 'moallemi-v14';
-const APP_VERSION = '14';
+const CACHE_NAME = 'moallemi-v15';
+const APP_VERSION = '15';
 
 const ASSETS = [
   './', './index.html', './css/style.css',
@@ -7,7 +7,7 @@ const ASSETS = [
   './js/storage.js', './js/data.js', './js/dashboard.js', './js/students.js', './js/groups.js',
   './js/attendance.js', './js/grades.js', './js/homework.js', './js/payments.js', './js/reports.js',
   './js/notifications.js', './js/settings.js', './js/icons.js', './js/app.js', './js/app-enhancements.js',
-  './js/whatsapp-report.js', './js/guardian-whatsapp.js', './js/report-downloads.js',
+  './js/guardian-whatsapp.js',
   './assets/logo.png', './assets/logo-small.png', './assets/favicon.png', './assets/icon-192.png', './assets/icon-512.png', './manifest.json'
 ];
 
@@ -49,9 +49,6 @@ async function appShellResponse(request) {
   const response = await networkFirst(request);
   if (!response || !response.ok) return response;
 
-  // Inject the shared runtime without requiring every HTML deployment
-  // to remember another script tag. This keeps the legacy vanilla-JS
-  // architecture intact while giving all modules one runtime layer.
   const contentType = response.headers.get('content-type') || '';
   if (!contentType.includes('text/html')) return response;
 
@@ -61,7 +58,7 @@ async function appShellResponse(request) {
 
     const injected = source.replace(
       /<\/body>/i,
-      '    <script src="js/core.js?v=14" defer></script>\n</body>'
+      '    <script src="js/core.js?v=15" defer></script>\n</body>'
     );
 
     const headers = new Headers(response.headers);
